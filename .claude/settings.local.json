@@ -1,0 +1,15 @@
+{
+  "env": {
+    "DISABLE_ZOXIDE": "1"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(npm run build:*)",
+      "Bash(brew list:*)",
+      "Bash(npm ls:*)",
+      "Bash(npm run build:examples:*)",
+      "Bash(npm test:*)"
+    ]
+  }
+}

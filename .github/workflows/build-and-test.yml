@@ -1,0 +1,32 @@
+on:
+  workflow_call:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+          scope: '@martyndevries'
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Build
+        run: npm run build
+      - name: Compile tests
+        run: npm run pretest
+      - name: Run tests (coverage)
+        run: npm run test:coverage
+      - name: Post coverage summary
+        if: github.event_name == 'pull_request'
+        run: node .github/scripts/post-coverage-comment.cjs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

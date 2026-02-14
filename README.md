@@ -1,5 +1,15 @@
 # xiaomi-miio
 
+[![NPM Version](https://img.shields.io/npm/v/@martyndevries/xiaomi-miio)](https://www.npmjs.com/package/@martyndevries/xiaomi-miio)
+[![NPM Downloads](https://img.shields.io/npm/dm/@martyndevries/xiaomi-miio)](https://www.npmjs.com/package/@martyndevries/xiaomi-miio)
+[![Node Version](https://img.shields.io/node/v/@martyndevries/xiaomi-miio)](https://nodejs.org)
+[![License](https://img.shields.io/npm/l/@martyndevries/xiaomi-miio)](https://github.com/mvdevries/xiaomi-miio/blob/main/LICENSE)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/mvdevries/xiaomi-miio/main-cicd.yml?branch=main)](https://github.com/mvdevries/xiaomi-miio/actions)
+[![CodeQL](https://img.shields.io/github/actions/workflow/status/mvdevries/xiaomi-miio/codeql.yml?branch=main&label=CodeQL)](https://github.com/mvdevries/xiaomi-miio/security/code-scanning)
+[![Coverage](https://img.shields.io/codecov/c/github/mvdevries/xiaomi-miio)](https://codecov.io/gh/mvdevries/xiaomi-miio)
+[![Dependencies](https://img.shields.io/librariesio/release/npm/@martyndevries/xiaomi-miio)](https://libraries.io/npm/@martyndevries%2Fxiaomi-miio)
+[![Semantic Release](https://img.shields.io/badge/semantic--release-enabled-brightgreen?logo=semantic-release)](https://github.com/semantic-release/semantic-release)
+
 Zero-dependency Node.js TypeScript library for communicating with Xiaomi devices via the miIO protocol.
 
 miIO is Xiaomi's local LAN protocol used by many devices (fans, lamps, etc.) for discovery and command/control.

@@ -15,8 +15,8 @@ xiaomi-miio/
 │   └── index.ts          # Public API exports
 ├── examples/             # CLI examples
 ├── .github/workflows/    # CI + release pipelines
+├── jest.config.ts        # Jest test configuration
 ├── tsconfig.json
-├── tsconfig.test.json
 └── tsconfig.examples.json
 ```
 
@@ -40,14 +40,8 @@ xiaomi-miio/
 npm install
 npm run lint
 npm run build
-npm run pretest
+npm run test
 npm run test:coverage
-```
-
-Local test run without coverage:
-
-```bash
-npm run test:dev
 ```
 
 ## Examples
@@ -60,16 +54,19 @@ npm run example:discovery
 ## Build & Test Outputs
 
 - `dist/` from `npm run build`
-- `dist-test/` from `npm run pretest`
 - `dist-examples/` from `npm run build:examples`
-- Coverage report in `coverage/` from `npm run test:coverage`
+- `coverage/` from `npm run test:coverage` (includes HTML report)
 
 ## Quality Gates
 
 - Node.js 22 minimum
 - Lint passes for any code changes
-- Tests must pass
-- Coverage must stay at or above 80% (lines, statements, branches, functions)
+- Tests must pass (Jest)
+- Coverage thresholds:
+  - Lines: ≥80%
+  - Statements: ≥80%
+  - Functions: ≥80%
+  - Branches: ≥75%
 
 ## Coding Standards
 

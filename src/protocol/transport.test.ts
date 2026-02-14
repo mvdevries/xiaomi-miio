@@ -1,5 +1,3 @@
-import { describe, it, beforeEach, afterEach, mock } from 'node:test';
-import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import type * as dgram from 'node:dgram';
 import { MiioTransport } from './transport.js';
@@ -12,12 +10,12 @@ const STAMP = 100;
 /** Create a mock dgram.Socket using an EventEmitter. */
 function createMockSocket() {
   const emitter = new EventEmitter();
-  const sendFn = mock.fn(
+  const sendFn = jest.fn(
     (_msg: Buffer, _offset: number, _length: number, _port: number, _address: string, cb?: (err: Error | null) => void) => {
       cb?.(null);
     }
   );
-  const closeFn = mock.fn(() => {});
+  const closeFn = jest.fn(() => {});
 
   const socket = Object.assign(emitter, {
     send: sendFn,
@@ -71,8 +69,8 @@ describe('MiioTransport', () => {
       mockSocket.socket.emit('message', buildHelloResponse());
 
       const result = await handshakePromise;
-      assert.strictEqual(result.deviceId, DEVICE_ID);
-      assert.strictEqual(result.stamp, STAMP);
+      expect(result.deviceId).toBe(DEVICE_ID);
+      expect(result.stamp).toBe(STAMP);
     });
 
     it('should send a hello packet via the socket', async () => {
@@ -80,17 +78,25 @@ describe('MiioTransport', () => {
       mockSocket.socket.emit('message', buildHelloResponse());
       await handshakePromise;
 
-      assert.strictEqual(mockSocket.sendFn.mock.callCount(), 1);
-      const sentPacket = mockSocket.sendFn.mock.calls[0]?.arguments[0] as Buffer;
-      assert.strictEqual(sentPacket.readUInt16BE(0), 0x2131);
-      assert.strictEqual(sentPacket.readUInt16BE(2), 32);
+      expect(mockSocket.sendFn).toHaveBeenCalledTimes(1);
+      const sentPacket = mockSocket.sendFn.mock.calls[0]?.[0] as Buffer;
+      expect(sentPacket.readUInt16BE(0)).toBe(0x2131);
+      expect(sentPacket.readUInt16BE(2)).toBe(32);
     });
 
     it('should reject on timeout', async () => {
-      await assert.rejects(
-        () => transport.handshake(),
-        { message: /Handshake timeout/ }
-      );
+      await expect(transport.handshake())
+        .rejects.toThrow(/Handshake timeout/);
+    });
+
+    it('should reject on malformed response', async () => {
+      const handshakePromise = transport.handshake();
+
+      // Send a malformed packet (too short)
+      mockSocket.socket.emit('message', Buffer.alloc(10));
+
+      await expect(handshakePromise)
+        .rejects.toThrow(/Packet too short/);
     });
   });
 
@@ -110,7 +116,7 @@ describe('MiioTransport', () => {
       mockSocket.socket.emit('message', response);
 
       const result = await sendPromise;
-      assert.deepStrictEqual(result, ['ok']);
+      expect(result).toEqual(['ok']);
     });
 
     it('should reject on command timeout', async () => {
@@ -119,10 +125,8 @@ describe('MiioTransport', () => {
       mockSocket.socket.emit('message', buildHelloResponse());
       await handshakePromise;
 
-      await assert.rejects(
-        () => transport.send('set_power', ['on']),
-        { message: /timed out/ }
-      );
+      await expect(transport.send('set_power', ['on']))
+        .rejects.toThrow(/timed out/);
     });
 
     it('should reject on miIO error response', async () => {
@@ -136,10 +140,8 @@ describe('MiioTransport', () => {
       const errorResponse = MiioPacket.encode(DEVICE_ID, STAMP + 1, TOKEN, errorPayload);
       mockSocket.socket.emit('message', errorResponse);
 
-      await assert.rejects(
-        () => sendPromise,
-        { message: /miIO error -1: unknown method/ }
-      );
+      await expect(sendPromise)
+        .rejects.toThrow(/miIO error -1: unknown method/);
     });
   });
 
@@ -151,7 +153,7 @@ describe('MiioTransport', () => {
       await handshakePromise;
 
       transport.destroy();
-      assert.strictEqual(mockSocket.closeFn.mock.callCount(), 1);
+      expect(mockSocket.closeFn).toHaveBeenCalledTimes(1);
     });
 
     it('should reject all pending requests', async () => {
@@ -162,10 +164,8 @@ describe('MiioTransport', () => {
       const sendPromise = transport.send('set_power', ['on']);
       transport.destroy();
 
-      await assert.rejects(
-        () => sendPromise,
-        { message: /Transport destroyed/ }
-      );
+      await expect(sendPromise)
+        .rejects.toThrow(/Transport destroyed/);
     });
   });
 });

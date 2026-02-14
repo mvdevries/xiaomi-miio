@@ -1,0 +1,21 @@
+# Title: small description
+
+# <type>(<scope>): <description>
+#
+# Types:
+#   feat:     A new feature (triggers minor release)
+#   fix:      A bug fix (triggers patch release)
+#   docs:     Documentation only changes
+#   style:    Code style changes (formatting, semicolons, etc)
+#   refactor: Code change that neither fixes a bug nor adds a feature
+#   perf:     Performance improvement (triggers patch release)
+#   test:     Adding or updating tests
+#   build:    Build system or external dependency changes
+#   ci:       CI configuration changes
+#   chore:    Other changes that don't modify src or test files
+#
+# Breaking changes:
+#   Add "BREAKING CHANGE:" in the commit body or "!" after type
+#   Example: feat!: remove deprecated API (triggers major release)
+#
+# Scope examples: protocol, device, ci, deps

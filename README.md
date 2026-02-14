@@ -112,6 +112,6 @@ for (const device of devices) {
 ```
 
 ## Contributing
-Maintained by Martyn de Vries. 
+- Martyn de Vries (Maintainer)
 
 Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for how to get started.

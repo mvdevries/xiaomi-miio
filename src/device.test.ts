@@ -1,5 +1,3 @@
-import { describe, it, beforeEach, afterEach, mock } from 'node:test';
-import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import type * as dgram from 'node:dgram';
 import { MiioDevice } from './device.js';
@@ -60,9 +58,9 @@ describe('MiioDevice', () => {
       mockSocket.emit('message', buildHelloResponse());
 
       const info = await connectPromise;
-      assert.strictEqual(info.address, '192.168.1.100');
-      assert.strictEqual(info.deviceId, DEVICE_ID);
-      assert.strictEqual(info.model, 'yeelink.light.bslamp2');
+      expect(info.address).toBe('192.168.1.100');
+      expect(info.deviceId).toBe(DEVICE_ID);
+      expect(info.model).toBe('yeelink.light.bslamp2');
     });
   });
 
@@ -78,7 +76,19 @@ describe('MiioDevice', () => {
       mockSocket.emit('message', buildCommandResponse(1, ['ok']));
 
       const result = await callPromise;
-      assert.deepStrictEqual(result, ['ok']);
+      expect(result).toEqual(['ok']);
+    });
+
+    it('should use empty array as default params', async () => {
+      const connectPromise = device.connect();
+      mockSocket.emit('message', buildHelloResponse());
+      await connectPromise;
+
+      const callPromise = device.call('get_info');
+      mockSocket.emit('message', buildCommandResponse(1, { model: 'test' }));
+
+      const result = await callPromise;
+      expect(result).toEqual({ model: 'test' });
     });
   });
 
@@ -92,29 +102,39 @@ describe('MiioDevice', () => {
       mockSocket.emit('message', buildCommandResponse(1, ['on', 100]));
 
       const result = await propsPromise;
-      assert.deepStrictEqual(result, ['on', 100]);
+      expect(result).toEqual(['on', 100]);
     });
   });
 
   describe('lookupHostname', () => {
     it('should resolve hostname via DNS', async () => {
-      const lookupService = mock.fn((_address: string, _port: number) => {
+      const lookupService = jest.fn((_address: string, _port: number) => {
         return Promise.resolve({ hostname: 'miio-device.local', service: 'miio' });
       });
 
       const result = await device.lookupHostname({ port: 54321, lookupService });
-      assert.strictEqual(result.address, '192.168.1.100');
-      assert.strictEqual(result.port, 54321);
-      assert.strictEqual(result.hostname, 'miio-device.local');
-      assert.strictEqual(result.service, 'miio');
-      assert.strictEqual(result.error, null);
-      assert.strictEqual(lookupService.mock.callCount(), 1);
+      expect(result.address).toBe('192.168.1.100');
+      expect(result.port).toBe(54321);
+      expect(result.hostname).toBe('miio-device.local');
+      expect(result.service).toBe('miio');
+      expect(result.error).toBeNull();
+      expect(lookupService).toHaveBeenCalledTimes(1);
+    });
+
+    it('should use default options when not provided', async () => {
+      const lookupService = jest.fn((_address: string, _port: number) => {
+        return Promise.resolve({ hostname: 'device.local', service: 'miio' });
+      });
+
+      const result = await device.lookupHostname({ lookupService });
+      expect(result.address).toBe('192.168.1.100');
+      expect(result.hostname).toBe('device.local');
     });
   });
 
   describe('destroy', () => {
     it('should not throw when called on unconnected device', () => {
-      assert.doesNotThrow(() => device.destroy());
+      expect(() => device.destroy()).not.toThrow();
     });
   });
 });

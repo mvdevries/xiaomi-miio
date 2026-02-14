@@ -1,3 +1,10 @@
+## [1.0.2](https://github.com/mvdevries/xiaomi-miio/compare/v1.0.1...v1.0.2) (2026-02-14)
+
+
+### Bug Fixes
+
+* Added dependabot for dependency updating ([4f0f452](https://github.com/mvdevries/xiaomi-miio/commit/4f0f452dfceaeb9b641b0c7a9c8dcff8ea7d0b14))
+
 ## [1.0.1](https://github.com/mvdevries/xiaomi-miio/compare/v1.0.0...v1.0.1) (2026-02-14)
 
 

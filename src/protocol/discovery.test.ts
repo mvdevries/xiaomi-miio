@@ -1,5 +1,3 @@
-import { describe, it, mock } from 'node:test';
-import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import type * as dgram from 'node:dgram';
 import { discoverMiioDevices } from './discovery.js';
@@ -10,14 +8,14 @@ const TOKEN_B = Buffer.from('ffeeddccbbaa99887766554433221100', 'hex');
 /** Create a mock dgram.Socket using an EventEmitter. */
 function createMockSocket() {
   const emitter = new EventEmitter();
-  const bindFn = mock.fn((_port: number, cb?: () => void) => { cb?.(); });
-  const sendFn = mock.fn(
+  const bindFn = jest.fn((_port: number, cb?: () => void) => { cb?.(); });
+  const sendFn = jest.fn(
     (_msg: Buffer, _offset: number, _length: number, _port: number, _address: string, cb?: (err: Error | null) => void) => {
       cb?.(null);
     }
   );
-  const closeFn = mock.fn(() => {});
-  const setBroadcastFn = mock.fn((_enabled: boolean) => {});
+  const closeFn = jest.fn(() => {});
+  const setBroadcastFn = jest.fn((_enabled: boolean) => {});
 
   const socket = Object.assign(emitter, {
     bind: bindFn,
@@ -66,11 +64,11 @@ describe('discoverMiioDevices', () => {
     mockSocket.socket.emit('message', respB, buildRemoteInfo('192.168.1.11'));
 
     const devices = await promise;
-    assert.strictEqual(devices.length, 2);
-    assert.strictEqual(mockSocket.bindFn.mock.callCount(), 1);
-    assert.strictEqual(mockSocket.setBroadcastFn.mock.callCount(), 1);
-    assert.strictEqual(mockSocket.sendFn.mock.callCount(), 1);
-    assert.strictEqual(mockSocket.closeFn.mock.callCount(), 1);
+    expect(devices.length).toBe(2);
+    expect(mockSocket.bindFn).toHaveBeenCalledTimes(1);
+    expect(mockSocket.setBroadcastFn).toHaveBeenCalledTimes(1);
+    expect(mockSocket.sendFn).toHaveBeenCalledTimes(1);
+    expect(mockSocket.closeFn).toHaveBeenCalledTimes(1);
   });
 
   it('includes the token when requested', async () => {
@@ -85,9 +83,24 @@ describe('discoverMiioDevices', () => {
     mockSocket.socket.emit('message', resp, buildRemoteInfo('192.168.1.12'));
 
     const [device] = await promise;
-    assert.ok(device);
-    assert.strictEqual(device.address, '192.168.1.12');
-    assert.strictEqual(device.token?.toString('hex'), TOKEN_A.toString('hex'));
+    expect(device).toBeDefined();
+    expect(device?.address).toBe('192.168.1.12');
+    expect(device?.token?.toString('hex')).toBe(TOKEN_A.toString('hex'));
+  });
+
+  it('uses default options when not provided', async () => {
+    const mockSocket = createMockSocket();
+    const promise = discoverMiioDevices({
+      timeout: 20,
+      createSocket: () => mockSocket.socket,
+    });
+
+    const resp = buildHelloResponse(TOKEN_A, 0x44444444, 40);
+    mockSocket.socket.emit('message', resp, buildRemoteInfo('192.168.1.14'));
+
+    const devices = await promise;
+    expect(devices.length).toBe(1);
+    expect(devices[0]?.token).toBeUndefined();
   });
 
   it('ignores malformed packets', async () => {
@@ -100,7 +113,7 @@ describe('discoverMiioDevices', () => {
     mockSocket.socket.emit('message', Buffer.from('nope'), buildRemoteInfo('192.168.1.13'));
 
     const devices = await promise;
-    assert.deepStrictEqual(devices, []);
+    expect(devices).toEqual([]);
   });
 
   it('rejects on socket error', async () => {
@@ -113,10 +126,8 @@ describe('discoverMiioDevices', () => {
     const error = new Error('boom');
     mockSocket.socket.emit('error', error);
 
-    await assert.rejects(
-      () => promise,
-      { message: /boom/ }
-    );
-    assert.strictEqual(mockSocket.closeFn.mock.callCount(), 1);
+    await expect(promise)
+      .rejects.toThrow(/boom/);
+    expect(mockSocket.closeFn).toHaveBeenCalledTimes(1);
   });
 });

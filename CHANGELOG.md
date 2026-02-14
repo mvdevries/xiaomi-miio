@@ -1,3 +1,10 @@
+## [1.0.3](https://github.com/mvdevries/xiaomi-miio/compare/v1.0.2...v1.0.3) (2026-02-14)
+
+
+### Bug Fixes
+
+* dependabot update, ignore node js types ([39e3746](https://github.com/mvdevries/xiaomi-miio/commit/39e37462f2bdd4cf9abbefba3abb1eb3c3533b26))
+
 ## [1.0.2](https://github.com/mvdevries/xiaomi-miio/compare/v1.0.1...v1.0.2) (2026-02-14)
 
 

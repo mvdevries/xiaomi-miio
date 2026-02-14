@@ -24,8 +24,6 @@ npm run build
 npm run test:dev
 ```
 
-**Requirements:** Node.js 22+ and npm 10+
-
 ## Making changes
 
 1. Create a new branch from `main`:

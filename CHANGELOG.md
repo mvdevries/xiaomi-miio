@@ -1,3 +1,10 @@
+## [1.0.5](https://github.com/mvdevries/xiaomi-miio/compare/v1.0.4...v1.0.5) (2026-02-14)
+
+
+### Bug Fixes
+
+* Changed test framework from node test to jest with coverage ([6fa0aeb](https://github.com/mvdevries/xiaomi-miio/commit/6fa0aeb693ef342a7ea6562bec433e41affc3009))
+
 ## [1.0.4](https://github.com/mvdevries/xiaomi-miio/compare/v1.0.3...v1.0.4) (2026-02-14)
 
 

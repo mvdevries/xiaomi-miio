@@ -1,6 +1,6 @@
 {
   "name": "@martyndevries/xiaomi-miio",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Zero-dependency Node.js library for Xiaomi miIO protocol",
   "type": "module",
   "exports": {

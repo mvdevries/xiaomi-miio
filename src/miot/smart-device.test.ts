@@ -40,6 +40,45 @@ const mockSpec: MiotSpec = {
   ],
 };
 
+const mockSpecWithActions: MiotSpec = {
+  type: 'urn:miot-spec-v2:device:light:0000A001:test:1',
+  description: 'Test Light With Actions',
+  services: [
+    {
+      iid: 2,
+      type: 'urn:miot-spec-v2:service:light',
+      description: 'Light',
+      properties: [
+        {
+          iid: 1,
+          type: 'urn:miot-spec-v2:property:power',
+          description: 'Power',
+          format: 'bool',
+          access: ['read', 'write', 'notify'],
+        },
+        {
+          iid: 2,
+          type: 'urn:miot-spec-v2:property:brightness',
+          description: 'Brightness',
+          format: 'uint8',
+          access: ['read', 'write', 'notify'],
+          unit: 'percentage',
+          'value-range': [1, 100, 1],
+        },
+      ],
+      actions: [
+        {
+          iid: 1,
+          type: 'urn:miot-spec-v2:action:toggle',
+          description: 'Toggle',
+          in: [],
+          out: [],
+        },
+      ],
+    },
+  ],
+};
+
 describe('SmartDevice', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -327,6 +366,166 @@ describe('SmartDevice', () => {
       device.initializeWithSpec(mockSpec);
 
       await expect(device.callAction('unknown')).rejects.toThrow('Unknown action: unknown');
+    });
+
+    it('should call action with correct siid and aiid', async () => {
+      const device = new SmartDevice({
+        address: '192.168.1.100',
+        token: Buffer.from('0123456789abcdef0123456789abcdef', 'hex'),
+        model: 'test.light.v1',
+      });
+
+      (MiotSpecFetcher.extractCapabilities as jest.Mock).mockReturnValue([]);
+      device.initializeWithSpec(mockSpecWithActions);
+
+      const callSpy = jest.spyOn(device, 'call').mockResolvedValue({ code: 0 });
+
+      const result = await device.callAction('toggle');
+      expect(result).toEqual({ code: 0 });
+      expect(callSpy).toHaveBeenCalledWith('action', [{ siid: 2, aiid: 1, in: [] }]);
+    });
+
+    it('should pass parameters to action', async () => {
+      const device = new SmartDevice({
+        address: '192.168.1.100',
+        token: Buffer.from('0123456789abcdef0123456789abcdef', 'hex'),
+        model: 'test.light.v1',
+      });
+
+      (MiotSpecFetcher.extractCapabilities as jest.Mock).mockReturnValue([]);
+      device.initializeWithSpec(mockSpecWithActions);
+
+      const callSpy = jest.spyOn(device, 'call').mockResolvedValue({ code: 0 });
+
+      await device.callAction('toggle', [1, 2, 3]);
+      expect(callSpy).toHaveBeenCalledWith('action', [{ siid: 2, aiid: 1, in: [1, 2, 3] }]);
+    });
+  });
+
+  describe('getProperty with known property', () => {
+    it('should return value when call succeeds with code 0', async () => {
+      const device = new SmartDevice({
+        address: '192.168.1.100',
+        token: Buffer.from('0123456789abcdef0123456789abcdef', 'hex'),
+        model: 'test.light.v1',
+      });
+
+      (MiotSpecFetcher.extractCapabilities as jest.Mock).mockReturnValue([]);
+      device.initializeWithSpec(mockSpecWithActions);
+
+      jest.spyOn(device, 'call').mockResolvedValue([{ code: 0, value: true }]);
+
+      const result = await device.getProperty('power');
+      expect(result).toBe(true);
+    });
+
+    it('should throw when call returns non-zero code', async () => {
+      const device = new SmartDevice({
+        address: '192.168.1.100',
+        token: Buffer.from('0123456789abcdef0123456789abcdef', 'hex'),
+        model: 'test.light.v1',
+      });
+
+      (MiotSpecFetcher.extractCapabilities as jest.Mock).mockReturnValue([]);
+      device.initializeWithSpec(mockSpecWithActions);
+
+      jest.spyOn(device, 'call').mockResolvedValue([{ code: -1 }]);
+
+      await expect(device.getProperty('power')).rejects.toThrow(
+        'Failed to get property power: code -1',
+      );
+    });
+  });
+
+  describe('setProperty with known property', () => {
+    it('should succeed when call returns code 0', async () => {
+      const device = new SmartDevice({
+        address: '192.168.1.100',
+        token: Buffer.from('0123456789abcdef0123456789abcdef', 'hex'),
+        model: 'test.light.v1',
+      });
+
+      (MiotSpecFetcher.extractCapabilities as jest.Mock).mockReturnValue([]);
+      device.initializeWithSpec(mockSpecWithActions);
+
+      const callSpy = jest.spyOn(device, 'call').mockResolvedValue([{ code: 0 }]);
+
+      await device.setProperty('power', true);
+      expect(callSpy).toHaveBeenCalledWith('set_properties', [
+        { siid: 2, piid: 1, value: true },
+      ]);
+    });
+
+    it('should throw when call returns non-zero code', async () => {
+      const device = new SmartDevice({
+        address: '192.168.1.100',
+        token: Buffer.from('0123456789abcdef0123456789abcdef', 'hex'),
+        model: 'test.light.v1',
+      });
+
+      (MiotSpecFetcher.extractCapabilities as jest.Mock).mockReturnValue([]);
+      device.initializeWithSpec(mockSpecWithActions);
+
+      jest.spyOn(device, 'call').mockResolvedValue([{ code: -4001 }]);
+
+      await expect(device.setProperty('power', true)).rejects.toThrow(
+        'Failed to set property power: code -4001',
+      );
+    });
+  });
+
+  describe('dynamic methods', () => {
+    it('should register and call dynamic getter', async () => {
+      const device = new SmartDevice({
+        address: '192.168.1.100',
+        token: Buffer.from('0123456789abcdef0123456789abcdef', 'hex'),
+        model: 'test.light.v1',
+      });
+
+      (MiotSpecFetcher.extractCapabilities as jest.Mock).mockReturnValue([]);
+      device.initializeWithSpec(mockSpecWithActions);
+
+      jest.spyOn(device, 'call').mockResolvedValue([{ code: 0, value: 75 }]);
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result = await (device as any).getBrightness();
+      expect(result).toBe(75);
+    });
+
+    it('should register and call dynamic setter', async () => {
+      const device = new SmartDevice({
+        address: '192.168.1.100',
+        token: Buffer.from('0123456789abcdef0123456789abcdef', 'hex'),
+        model: 'test.light.v1',
+      });
+
+      (MiotSpecFetcher.extractCapabilities as jest.Mock).mockReturnValue([]);
+      device.initializeWithSpec(mockSpecWithActions);
+
+      const callSpy = jest.spyOn(device, 'call').mockResolvedValue([{ code: 0 }]);
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (device as any).setPower(true);
+      expect(callSpy).toHaveBeenCalledWith('set_properties', [
+        { siid: 2, piid: 1, value: true },
+      ]);
+    });
+
+    it('should register and call dynamic action method', async () => {
+      const device = new SmartDevice({
+        address: '192.168.1.100',
+        token: Buffer.from('0123456789abcdef0123456789abcdef', 'hex'),
+        model: 'test.light.v1',
+      });
+
+      (MiotSpecFetcher.extractCapabilities as jest.Mock).mockReturnValue([]);
+      device.initializeWithSpec(mockSpecWithActions);
+
+      const callSpy = jest.spyOn(device, 'call').mockResolvedValue({ code: 0 });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (device as any).callToggle();
+      expect(callSpy).toHaveBeenCalledWith('action', [{ siid: 2, aiid: 1, in: [] }]);
     });
   });
 });

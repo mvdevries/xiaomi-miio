@@ -11,3 +11,14 @@ export {
   type DnsLookupResult,
   type DnsLookupService,
 } from './dns.js';
+export {
+  SmartDevice,
+  MiotSpecFetcher,
+  type SmartDeviceOptions,
+  type PropertyValue,
+  type MiotSpec,
+  type MiotService,
+  type MiotProperty,
+  type MiotAction,
+  type DeviceCapability,
+} from './miot/index.js';

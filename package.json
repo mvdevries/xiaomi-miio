@@ -23,6 +23,7 @@
     "lint": "eslint src/",
     "build:examples": "tsc -p tsconfig.examples.json",
     "example:devices:bedlamp2": "tsc -p tsconfig.examples.json && node dist-examples/examples/devices/bedlamp2-cli.js",
+    "example:devices:fan-za4": "tsc -p tsconfig.examples.json && node dist-examples/examples/devices/fan-za4-cli.js",
     "example:discovery": "tsc -p tsconfig.examples.json && node dist-examples/examples/discovery-cli.js",
     "example:hostname": "tsc -p tsconfig.examples.json && node dist-examples/examples/hostname-cli.js",
     "example:smart:device": "tsc -p tsconfig.examples.json && node dist-examples/examples/smart/device-cli.js",

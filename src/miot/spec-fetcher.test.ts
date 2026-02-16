@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { MiotSpecFetcher, type MiotSpec } from './spec-fetcher.js';
 
 describe('MiotSpecFetcher', () => {
@@ -203,31 +203,59 @@ describe('MiotSpecFetcher', () => {
   });
 
   describe('fetchSpec', () => {
-    it('should return cached spec on second call', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let httpsGetSpy: jest.SpiedFunction<any>;
+
+    afterEach(() => {
+      httpsGetSpy?.mockRestore();
+    });
+
+    it('should fetch spec via httpsGet and return it', async () => {
       const testSpec: MiotSpec = {
         type: 'test',
         description: 'Test',
         services: [],
       };
 
-      // Mock implementation that tracks calls
-      const originalFetch = MiotSpecFetcher.fetchSpec;
-      let callCount = 0;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      httpsGetSpy = jest.spyOn(MiotSpecFetcher as any, 'httpsGet').mockResolvedValue(testSpec);
 
-      // Create a simple mock that returns testSpec
-      MiotSpecFetcher.fetchSpec = async () => {
-        callCount++;
-        return testSpec;
+      const result = await MiotSpecFetcher.fetchSpec('fetch-model');
+
+      expect(result).toBe(testSpec);
+      expect(httpsGetSpy).toHaveBeenCalledTimes(1);
+      expect(httpsGetSpy).toHaveBeenCalledWith(
+        expect.stringContaining('fetch-model'),
+      );
+    });
+
+    it('should return cached spec on second call without calling httpsGet again', async () => {
+      const testSpec: MiotSpec = {
+        type: 'test',
+        description: 'Test',
+        services: [],
       };
 
-      const spec1 = await MiotSpecFetcher.fetchSpec('test.model');
-      const spec2 = await MiotSpecFetcher.fetchSpec('test.model');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      httpsGetSpy = jest.spyOn(MiotSpecFetcher as any, 'httpsGet').mockResolvedValue(testSpec);
 
-      expect(spec1).toBe(spec2);
-      expect(callCount).toBe(2); // Both calls go through
+      const result1 = await MiotSpecFetcher.fetchSpec('cached-model');
+      const result2 = await MiotSpecFetcher.fetchSpec('cached-model');
 
-      // Restore
-      MiotSpecFetcher.fetchSpec = originalFetch;
+      expect(result1).toBe(testSpec);
+      expect(result2).toBe(testSpec);
+      expect(httpsGetSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return null when httpsGet throws an error', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      httpsGetSpy = jest.spyOn(MiotSpecFetcher as any, 'httpsGet').mockRejectedValue(
+        new Error('Network error'),
+      );
+
+      const result = await MiotSpecFetcher.fetchSpec('error-model');
+
+      expect(result).toBeNull();
     });
   });
 });

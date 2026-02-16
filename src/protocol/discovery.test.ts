@@ -130,4 +130,21 @@ describe('discoverMiioDevices', () => {
       .rejects.toThrow(/boom/);
     expect(mockSocket.closeFn).toHaveBeenCalledTimes(1);
   });
+
+  it('rejects on send error', async () => {
+    const mockSocket = createMockSocket();
+    mockSocket.sendFn.mockImplementation(
+      (_msg: Buffer, _offset: number, _length: number, _port: number, _address: string, cb?: (err: Error | null) => void) => {
+        cb?.(new Error('send failed'));
+      },
+    );
+
+    const promise = discoverMiioDevices({
+      timeout: 50,
+      createSocket: () => mockSocket.socket,
+    });
+
+    await expect(promise).rejects.toThrow('send failed');
+    expect(mockSocket.closeFn).toHaveBeenCalledTimes(1);
+  });
 });

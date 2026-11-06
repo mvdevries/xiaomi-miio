@@ -4,7 +4,7 @@ import { MiioPacket } from './packet.js';
 
 const MIIO_PORT = 54321;
 const DEFAULT_TIMEOUT = 1500;
-const DEFAULT_RETRIES = 4;
+const DEFAULT_RETRIES = 3;
 const HANDSHAKE_MAX_AGE = 60_000;
 const MAX_MESSAGE_ID = 10_000;
 const RETRY_ID_STEP = 100;

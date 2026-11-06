@@ -421,14 +421,14 @@ describe('MiioTransport', () => {
       t.destroy();
     });
 
-    it('should make five attempts before giving up', async () => {
+    it('should make four attempts before giving up', async () => {
       const { t, sendFn } = createSilentTransport();
       const result = t.send('get_prop', []).catch((err: unknown) => err as Error);
 
-      await jest.advanceTimersByTimeAsync(1500 * 5);
+      await jest.advanceTimersByTimeAsync(1500 * 4);
 
       expect((await result as Error).message).toMatch(/timeout after 1500ms/);
-      expect(sendFn).toHaveBeenCalledTimes(5);
+      expect(sendFn).toHaveBeenCalledTimes(4);
       t.destroy();
     });
   });

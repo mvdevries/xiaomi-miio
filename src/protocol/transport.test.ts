@@ -391,4 +391,45 @@ describe('MiioTransport', () => {
       t.destroy();
     });
   });
+
+  describe('defaults', () => {
+    function createSilentTransport() {
+      const emitter = new EventEmitter();
+      const sendFn = jest.fn();
+      const socket = Object.assign(emitter, { send: sendFn, close: jest.fn() }) as unknown as dgram.Socket;
+      const t = new MiioTransport({ address: '192.168.1.100', token: TOKEN, createSocket: () => socket });
+      return { t, sendFn };
+    }
+
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('should time out a handshake after 1500ms', async () => {
+      const { t } = createSilentTransport();
+      const result = t.handshake().catch((err: unknown) => err as Error);
+
+      await jest.advanceTimersByTimeAsync(1499);
+      expect(await Promise.race([result, Promise.resolve('pending')])).toBe('pending');
+
+      await jest.advanceTimersByTimeAsync(1);
+      expect((await result as Error).message).toMatch(/Handshake timeout after 1500ms/);
+      t.destroy();
+    });
+
+    it('should make four attempts before giving up', async () => {
+      const { t, sendFn } = createSilentTransport();
+      const result = t.send('get_prop', []).catch((err: unknown) => err as Error);
+
+      await jest.advanceTimersByTimeAsync(1500 * 4);
+
+      expect((await result as Error).message).toMatch(/timeout after 1500ms/);
+      expect(sendFn).toHaveBeenCalledTimes(4);
+      t.destroy();
+    });
+  });
 });

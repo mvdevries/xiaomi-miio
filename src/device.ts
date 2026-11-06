@@ -1,5 +1,5 @@
 import { lookupDeviceHostname, type DnsLookupOptions, type DnsLookupResult } from './dns.js';
-import { MiioTransport, type TransportOptions } from './protocol/transport.js';
+import { MiioTransport, type SendOptions, type TransportOptions } from './protocol/transport.js';
 
 export interface DeviceOptions extends TransportOptions {
   /** Device model identifier (e.g. "yeelink.light.bslamp2"). */
@@ -40,8 +40,8 @@ export class MiioDevice {
   }
 
   /** Send a raw miIO command. */
-  async call(method: string, params: unknown[] = []): Promise<unknown> {
-    return this.transport.send(method, params);
+  async call(method: string, params: unknown[] = [], options: SendOptions = {}): Promise<unknown> {
+    return this.transport.send(method, params, options);
   }
 
   /** Query device properties. */
@@ -52,6 +52,10 @@ export class MiioDevice {
   /** Resolve the device hostname via reverse DNS lookup. */
   async lookupHostname(options: DnsLookupOptions = {}): Promise<DnsLookupResult> {
     return lookupDeviceHostname(this.address, options);
+  }
+
+  reset(): void {
+    this.transport.reset();
   }
 
   /** Disconnect and clean up resources. */

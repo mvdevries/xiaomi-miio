@@ -53,6 +53,7 @@ describe('MiioTransport', () => {
       address: '192.168.1.100',
       token: TOKEN,
       timeout: 500,
+      retries: 0,
       createSocket: () => mockSocket.socket,
     });
   });
@@ -166,6 +167,228 @@ describe('MiioTransport', () => {
 
       await expect(sendPromise)
         .rejects.toThrow(/Transport destroyed/);
+    });
+  });
+
+  describe('reliability', () => {
+    interface FakeDeviceOptions {
+      ignoreFirst?: number;
+      errorCodes?: number[];
+      maxAcceptedId?: number;
+    }
+
+    function createFakeDevice(options: FakeDeviceOptions = {}) {
+      const emitter = new EventEmitter();
+      const received: { id: number; method: string; stamp: number }[] = [];
+      const hellos: number[] = [];
+      let ignore = options.ignoreFirst ?? 0;
+      const errorCodes = [...(options.errorCodes ?? [])];
+
+      const sendFn = jest.fn(
+        (msg: Buffer, _offset: number, _length: number, _port: number, _address: string, cb?: (err: Error | null) => void) => {
+          cb?.(null);
+          if (msg.length === 32) {
+            hellos.push(Date.now());
+            setImmediate(() => emitter.emit('message', buildHelloResponse()));
+            return;
+          }
+          const { payload, stamp } = MiioPacket.decode(msg, TOKEN);
+          const request = payload as { id: number; method: string };
+          received.push({ id: request.id, method: request.method, stamp });
+          if (ignore > 0) {
+            ignore--;
+            return;
+          }
+          if (options.maxAcceptedId !== undefined && request.id > options.maxAcceptedId) return;
+          const code = errorCodes.shift();
+          const reply =
+            code !== undefined
+              ? { id: request.id, error: { code, message: 'recoverable' } }
+              : { id: request.id, result: ['ok'] };
+          setImmediate(() => emitter.emit('message', MiioPacket.encode(DEVICE_ID, STAMP + 1, TOKEN, reply)));
+        }
+      );
+      const closeFn = jest.fn();
+      const socket = Object.assign(emitter, { send: sendFn, close: closeFn }) as unknown as dgram.Socket;
+      return { socket, received, hellos, closeFn, emitter };
+    }
+
+    function createTransport(device: ReturnType<typeof createFakeDevice>, retries = 3) {
+      return new MiioTransport({
+        address: '192.168.1.100',
+        token: TOKEN,
+        timeout: 30,
+        retries,
+        createSocket: () => device.socket,
+      });
+    }
+
+    it('should wrap message ids before they reach 10000', async () => {
+      const device = createFakeDevice();
+      const t = createTransport(device);
+      const seen: number[] = [];
+
+      for (let i = 0; i < 10_050; i++) {
+        await t.send('get_prop', []);
+      }
+      for (const r of device.received) seen.push(r.id);
+
+      expect(Math.max(...seen)).toBeLessThan(10_000);
+      expect(seen[9_998]).toBe(9_999);
+      expect(seen[9_999]).toBe(1);
+      t.destroy();
+    });
+
+    it('should retry after a timeout with a new handshake and id +100', async () => {
+      const device = createFakeDevice({ ignoreFirst: 1 });
+      const t = createTransport(device);
+
+      await expect(t.send('set_power', ['on'])).resolves.toEqual(['ok']);
+
+      expect(device.received.map((r) => r.id)).toEqual([1, 101]);
+      expect(device.hellos).toHaveLength(2);
+      t.destroy();
+    });
+
+    it('should give up after the configured number of retries', async () => {
+      const device = createFakeDevice({ ignoreFirst: 99 });
+      const t = createTransport(device, 2);
+
+      await expect(t.send('set_power', ['on'])).rejects.toThrow(/timed out/);
+
+      expect(device.received).toHaveLength(3);
+      t.destroy();
+    });
+
+    it('should retry recoverable device errors', async () => {
+      const device = createFakeDevice({ errorCodes: [-30001] });
+      const t = createTransport(device);
+
+      await expect(t.send('set_power', ['on'])).resolves.toEqual(['ok']);
+
+      expect(device.received).toHaveLength(2);
+      t.destroy();
+    });
+
+    it('should not retry other device errors', async () => {
+      const device = createFakeDevice({ errorCodes: [-5001] });
+      const t = createTransport(device);
+
+      await expect(t.send('set_power', ['on'])).rejects.toThrow(/miIO error -5001/);
+
+      expect(device.received).toHaveLength(1);
+      t.destroy();
+    });
+
+    it('should recover when the device only accepts ids below a limit', async () => {
+      const device = createFakeDevice({ maxAcceptedId: 50 });
+      const t = createTransport(device, 1);
+
+      await expect(t.send('get_prop', [])).resolves.toEqual(['ok']);
+      t.destroy();
+    });
+
+    it('should send requests one at a time and in order', async () => {
+      const device = createFakeDevice();
+      const t = createTransport(device);
+
+      const results = await Promise.all([
+        t.send('first', []),
+        t.send('second', []),
+        t.send('third', []),
+      ]);
+
+      expect(results).toEqual([['ok'], ['ok'], ['ok']]);
+      expect(device.received.map((r) => r.method)).toEqual(['first', 'second', 'third']);
+      expect(device.hellos).toHaveLength(1);
+      t.destroy();
+    });
+
+    it('should share one handshake between concurrent callers', async () => {
+      const device = createFakeDevice();
+      const t = createTransport(device);
+
+      await Promise.all([t.handshake(), t.handshake(), t.handshake()]);
+
+      expect(device.hellos).toHaveLength(1);
+      t.destroy();
+    });
+
+    it('should base the stamp on the device stamp and elapsed time', async () => {
+      jest.useFakeTimers({ doNotFake: ['setImmediate'] });
+      try {
+        const device = createFakeDevice();
+        const t = createTransport(device);
+
+        await t.send('a', []);
+        jest.advanceTimersByTime(10_000);
+        await t.send('b', []);
+
+        const [first, second] = device.received;
+        expect(first?.stamp).toBe(STAMP);
+        expect(second?.stamp).toBe(STAMP + 1 + 10);
+        t.destroy();
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it('should not throw when the socket errors without an error listener', async () => {
+      const device = createFakeDevice();
+      const t = createTransport(device);
+      await t.send('a', []);
+
+      expect(() => device.emitter.emit('error', new Error('boom'))).not.toThrow();
+      expect(device.closeFn).toHaveBeenCalled();
+      t.destroy();
+    });
+
+    it('should forward socket errors to an error listener', async () => {
+      const device = createFakeDevice();
+      const t = createTransport(device);
+      const listener = jest.fn();
+      t.on('error', listener);
+      await t.send('a', []);
+
+      device.emitter.emit('error', new Error('boom'));
+
+      expect(listener).toHaveBeenCalledTimes(1);
+      t.destroy();
+    });
+
+    it('should reconnect on the next call after the socket failed', async () => {
+      const device = createFakeDevice();
+      const t = createTransport(device);
+      await t.send('a', []);
+
+      device.emitter.emit('error', new Error('boom'));
+
+      await expect(t.send('b', [])).resolves.toEqual(['ok']);
+      t.destroy();
+    });
+
+    it('should start from a fresh handshake after reset', async () => {
+      const device = createFakeDevice();
+      const t = createTransport(device);
+      await t.send('a', []);
+
+      t.reset();
+      await t.send('b', []);
+
+      expect(device.hellos).toHaveLength(2);
+      t.destroy();
+    });
+
+    it('should not leave a handshake listener behind after a timeout', async () => {
+      const silent = new EventEmitter();
+      const socket = Object.assign(silent, { send: jest.fn(), close: jest.fn() }) as unknown as dgram.Socket;
+      const t = new MiioTransport({ address: '192.168.1.100', token: TOKEN, timeout: 20, retries: 0, createSocket: () => socket });
+
+      await expect(t.handshake()).rejects.toThrow(/Handshake timeout/);
+      await expect(t.handshake()).rejects.toThrow(/Handshake timeout/);
+
+      expect(silent.listenerCount('message')).toBe(1);
+      t.destroy();
     });
   });
 });

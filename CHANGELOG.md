@@ -1,3 +1,10 @@
+## [1.0.6](https://github.com/mvdevries/xiaomi-miio/compare/v1.0.5...v1.0.6) (2026-11-06)
+
+
+### Bug Fixes
+
+* make transport reliable (id wrap, retries, stamp, serialized requests) ([eabf098](https://github.com/mvdevries/xiaomi-miio/commit/eabf098ea2e74aef802bf1547fddd17e4105eb15))
+
 ## [1.0.5](https://github.com/mvdevries/xiaomi-miio/compare/v1.0.4...v1.0.5) (2026-02-14)
 
 

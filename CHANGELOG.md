@@ -1,3 +1,11 @@
+## [1.0.7](https://github.com/mvdevries/xiaomi-miio/compare/v1.0.6...v1.0.7) (2026-11-06)
+
+
+### Bug Fixes
+
+* keep the default retries at 3 ([25f4ec7](https://github.com/mvdevries/xiaomi-miio/commit/25f4ec7fa39e897fa4ab597ad8c17176b919842c))
+* shorter per-attempt timeout (1.5s) and 4 retries by default ([f77bb19](https://github.com/mvdevries/xiaomi-miio/commit/f77bb19084de401f60ada6100142332fed85bde5))
+
 ## [1.0.6](https://github.com/mvdevries/xiaomi-miio/compare/v1.0.5...v1.0.6) (2026-11-06)
 
 

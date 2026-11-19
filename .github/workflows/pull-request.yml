@@ -1,3 +1,5 @@
+name: Pull request
+
 on:
   workflow_dispatch:
   pull_request:
@@ -6,9 +8,36 @@ on:
       - synchronize
       - reopened
 
+permissions:
+  contents: read
+
+concurrency:
+  group: pull-request-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build-and-test:
+  branch-name:
+    name: Branch name
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the branch name
+        env:
+          BRANCH: ${{ github.head_ref }}
+        run: |
+          if [[ ! "$BRANCH" =~ ^(breaking|feature|fix)/.+ && ! "$BRANCH" =~ ^dependabot/.+ ]]; then
+            echo "The branch name '$BRANCH' must start with breaking/, feature/ or fix/ (the release pipeline derives the version from it)." >&2
+            exit 1
+          fi
+          case "$BRANCH" in
+            breaking/*) echo "This pull request releases a major version." >> "$GITHUB_STEP_SUMMARY" ;;
+            feature/*) echo "This pull request releases a minor version." >> "$GITHUB_STEP_SUMMARY" ;;
+            *) echo "This pull request releases a patch version." >> "$GITHUB_STEP_SUMMARY" ;;
+          esac
+
+  checks:
+    name: Checks
+    uses: ./.github/workflows/build-and-test.yml
     permissions:
       contents: read
       pull-requests: write
-    uses: ./.github/workflows/build-and-test.yml
+    secrets: inherit

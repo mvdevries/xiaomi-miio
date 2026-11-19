@@ -26,7 +26,7 @@ npm run test:dev
 
 ## Making changes
 
-1. Create a new branch from `main`:
+1. Create a new branch from `main`. The branch name starts with the kind of change, because the release pipeline derives the version from it (see [Versioning](#versioning)):
    ```bash
    git checkout -b feature/my-change
    ```
@@ -40,14 +40,7 @@ npm run test:dev
    npm run test:dev      # Run tests
    ```
 
-4. Commit your changes using a [Conventional Commit](https://www.conventionalcommits.org/) message (see [Versioning](#versioning) below for details):
-   ```bash
-   # Bug fix
-   git commit -m "fix: description of the fix"
-
-   # New feature
-   git commit -m "feat: description of the feature"
-   ```
+4. Commit your changes. The commit messages are free-form; the title of the pull request becomes the squash commit and the release text.
 
 5. Push your branch and create a Pull Request targeting `main`.
 
@@ -76,59 +69,27 @@ Found a bug? Create an [issue](https://github.com/mvdevries/xiaomi-miio/issues) 
 
 ## Versioning
 
-This project uses [semantic-release](https://github.com/semantic-release/semantic-release) for fully automated version management and publishing. You never need to manually update a version number — it is determined by the type of commit message you write, following the [Conventional Commits](https://www.conventionalcommits.org/) format.
+You never update a version number by hand. The version comes from the branch name of the merged pull request:
 
-### Commit message format
+| Branch name | Version bump |
+|---|---|
+| `breaking/…` | Major (1.0.0 → **2**.0.0) |
+| `feature/…` | Minor (1.0.0 → 1.**1**.0) |
+| `fix/…` | Patch (1.0.0 → 1.0.**1**) |
 
-```
-<type>(<optional scope>): <short description>
-
-<optional body>
-
-<optional footer>
-```
-
-| Commit prefix | Example | Release type |
-|---|---|---|
-| `fix: ...` | `fix: correct UDP timeout handling` | Patch (1.0.0 → 1.0.**1**) |
-| `feat: ...` | `feat: add discovery timeout option` | Minor (1.0.0 → 1.**1**.0) |
-| `feat!: ...` or `BREAKING CHANGE:` in body | `feat!: change connect() return type` | Major (1.0.0 → **2**.0.0) |
-
-Other prefixes (`chore:`, `docs:`, `refactor:`, `test:`, `ci:`) do **not** trigger a release but will appear in the changelog.
-
-**More examples:**
-
-```bash
-# Bug fix → patch release
-git commit -m "fix: handle empty token in handshake response"
-
-# New feature → minor release
-git commit -m "feat: add broadcast address option to discovery"
-
-# Breaking change → major release
-git commit -m "feat!: rename MiioDevice to Device
-
-BREAKING CHANGE: MiioDevice class is renamed to Device.
-Update all imports accordingly."
-
-# No release triggered
-git commit -m "refactor: extract packet parsing to separate function"
-git commit -m "test: add unit tests for encryption edge cases"
-```
+A pull request check rejects other branch names (Dependabot branches are allowed).
 
 ### What happens when a PR is merged to main?
 
-The CI pipeline runs automatically:
+The release pipeline (`.github/workflows/release.yml`) runs automatically, unless the change only touches
+documentation, `.github`, examples or other non-code files:
 
-1. **Build & Test** — lint, build, and tests with coverage check
-2. **Semantic Release** — analyzes all new commits since the last release and:
-   - Determines the new version number
-   - Generates the CHANGELOG.md
-   - Publishes the npm package (`@martyndevries/xiaomi-miio`)
-   - Creates a GitHub Release with release notes
-   - Commits the updated `package.json`, `package-lock.json`, and `CHANGELOG.md` back to `main`
+1. **Version** — raises the latest `v<version>` tag by the kind of bump from the branch name
+2. **Checks** — lint, build, and tests with coverage check
+3. **Publish** — builds and publishes the npm package (`@martyndevries/xiaomi-miio`) with that version
+4. **Release** — creates the tag and a GitHub Release; the title of the pull request becomes the release text
 
-If there are no `fix:` or `feat:` commits since the last release, no new version is published.
+The version in `package.json` is replaced during the run and is not committed back to `main`.
 
 ## Questions?
 

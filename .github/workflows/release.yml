@@ -12,6 +12,7 @@ on:
       - "**.md"
       - "LICENSE.md"
       - "agents.md"
+      - ".gitmessage"
   workflow_dispatch:
 
 permissions:

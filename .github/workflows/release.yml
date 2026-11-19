@@ -1,0 +1,110 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - ".github/**"
+      - ".claude/**"
+      - ".run/**"
+      - "examples/**"
+      - "**.md"
+      - "LICENSE.md"
+      - "agents.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  version:
+    name: Determine version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.next.outputs.version }}
+      previous: ${{ steps.next.outputs.current-v-version }}
+      changelog: ${{ steps.pull-request.outputs.title }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Find the merged pull request
+        id: pull-request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pull_request=$(gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/pulls" --jq '.[0] // {}')
+          title=$(jq -r '.title // empty' <<< "$pull_request")
+          branch=$(jq -r '.head.ref // empty' <<< "$pull_request")
+          if [ -z "$title" ]; then
+            title=$(git log -1 --format=%s)
+          fi
+          case "$branch" in
+            breaking/*) increment="major" ;;
+            feature/*) increment="minor" ;;
+            *) increment="patch" ;;
+          esac
+          echo "title=$title" >> "$GITHUB_OUTPUT"
+          echo "increment=$increment" >> "$GITHUB_OUTPUT"
+          echo "Branch '$branch' gives a $increment version." >> "$GITHUB_STEP_SUMMARY"
+      - name: Calculate the next version
+        id: next
+        uses: reecetech/version-increment@2026.8.4
+        with:
+          scheme: semver
+          increment: ${{ steps.pull-request.outputs.increment }}
+      - name: Summary
+        env:
+          VERSION: ${{ steps.next.outputs.version }}
+          TITLE: ${{ steps.pull-request.outputs.title }}
+        run: |
+          echo "Version $VERSION: $TITLE" >> "$GITHUB_STEP_SUMMARY"
+
+  checks:
+    name: Checks
+    uses: ./.github/workflows/build-and-test.yml
+    permissions:
+      contents: read
+      pull-requests: write
+    secrets: inherit
+
+  publish:
+    name: Publish to npm
+    needs: [version, checks]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - name: Fill in the version
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: npm version "$VERSION" --no-git-tag-version --allow-same-version
+      - run: npm ci
+      - run: npm run build
+      - name: Publish
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Create tag and release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.version.outputs.version }}
+          CHANGELOG: ${{ needs.version.outputs.changelog }}
+          PREVIOUS_TAG: ${{ needs.version.outputs.previous }}
+        run: |
+          gh release create "v$VERSION" --target "$GITHUB_SHA" --title "v$VERSION" \
+            --generate-notes --notes-start-tag "$PREVIOUS_TAG" \
+            --notes "$CHANGELOG"$'\n\n'"npm: https://www.npmjs.com/package/@martyndevries/xiaomi-miio/v/$VERSION"
+          echo "Version $VERSION published." >> "$GITHUB_STEP_SUMMARY"
